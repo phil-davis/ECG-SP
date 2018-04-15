@@ -110,10 +110,18 @@ else
 end
 
 % Get the annotation data from the atr file. 
-% This has the beats (R peaks) detected and their type N(ormal) or A(rrhtymia)
-% At present we are only loading the R peak data
+% This has the beats (R peaks) detected and their type N(ormal) or some
+% other beat annotation, or some special non-beat annotation character.
 % The annotation file name has no 'm' at the end
-[ann] = rdann(Name,'atr');
+[ann, anntype] = rdann(Name,'atr');
+
+% Certain annotations are (supposed to be) on beats, so should be R-peaks
+% see https://physionet.org/physiobank/annotations.shtml
+beat_annotation_chars = "NLRBAaJSVrFejnE/fQ?";
+
+% The non-beat annotations are anything else, but should be in this list:
+% [!]x()ptu`'^|~+sT*D="@
+% We ignore these for the purposes of this code that plots R-peaks
 
 % Maybe true or not? Because the annotation sample numbers and the actual
 % exact peaks sometimes match but are sometimes 1 sample off.
@@ -122,15 +130,20 @@ end
 %ann = ann + 1;
 
 % Init variables
-ann_secs = [];
-ann_values = [];
-peak_count = 0;
-peak_before_count = 0;
-peak_after_count = 0;
-peak_ok_count = 0;
-peak_ok = true;
-first_peak_sample = 0;
-last_peak_sample = 0;
+normal_r_peak_secs = [];
+normal_r_peak_values = [];
+arrhythmia_r_peak_secs = [];
+arrhythmia_r_peak_values = [];
+r_peak_count = 0;
+normal_r_peak_count = 0;
+arrhythmia_r_peak_count = 0;
+non_beat_annotations_count = 0;
+non_beat_annotations_list = "";
+r_peak_before_count = 0;
+r_peak_after_count = 0;
+r_peak_ok_count = 0;
+first_r_peak_sample = 0;
+last_r_peak_sample = 0;
 
 % Find the value of the peak at each annotation sample point.
 % Use the values from signal 1 in the val array.
@@ -138,54 +151,73 @@ last_peak_sample = 0;
 for k = 1 : length(ann)
     % Only use annotations that are between the desired start and end point
     if ((ann(k) >= start_sample) && (ann(k) <= end_sample))
-        peak_count = peak_count + 1;
-        ann_secs(peak_count) = ann(k) * interval;
-        ann_values(peak_count) = (val(1,ann(k)) - base(1)) / gain(1);
+        peak_sec = ann(k) * interval;
+        peak_value = (val(1,ann(k)) - base(1)) / gain(1);
+        if (anntype(k) == 'N')
+            r_peak_count = r_peak_count + 1;
+            normal_r_peak_count = normal_r_peak_count + 1;
+            normal_r_peak_secs(normal_r_peak_count) = peak_sec;
+            normal_r_peak_values(normal_r_peak_count) = peak_value;
+        elseif (contains(beat_annotation_chars, anntype(k)))
+            r_peak_count = r_peak_count + 1;
+            arrhythmia_r_peak_count = arrhythmia_r_peak_count + 1;
+            arrhythmia_r_peak_secs(arrhythmia_r_peak_count) = peak_sec;
+            arrhythmia_r_peak_values(arrhythmia_r_peak_count) = peak_value;
+        else
+            non_beat_annotations_count = non_beat_annotations_count + 1;
+            non_beat_annotations_list = non_beat_annotations_list + anntype(k);
+        end
+        
         peak_ok = true;
         
-        last_peak_sample = ann(k);
+        last_r_peak_sample = ann(k);
         
-        if (peak_count == 1)
-            first_peak_sample = last_peak_sample;
+        if (r_peak_count == 1)
+            first_r_peak_sample = last_r_peak_sample;
         end
         
         % If the value of the sample before or after is higher, 
         % then the annotation is not exactly on the peak.
         if (val(1,ann(k)) < val(1,ann(k)-1))
-            peak_before_count = peak_before_count + 1;
+            r_peak_before_count = r_peak_before_count + 1;
             peak_ok = false;
         end
         
         if (val(1,ann(k)) < val(1,ann(k)+1))
             peak_ok = false;
-            peak_after_count = peak_after_count + 1;
+            r_peak_after_count = r_peak_after_count + 1;
         end
         
         if (peak_ok)
-            peak_ok_count = peak_ok_count + 1;
+            r_peak_ok_count = r_peak_ok_count + 1;
         end
     end
 end
 
 % Report information about the numbers of annotated peaks found,
 % and how many seem to be not quite in the right place.
-fprintf('%d annotated R peaks are in the displayed time period\n', peak_count);
+fprintf('%d annotated R peaks are in the displayed time period\n', r_peak_count);
+fprintf('%d are normal and %d are arrhythmias\n', normal_r_peak_count, arrhythmia_r_peak_count);
 
-if (peak_ok_count < peak_count)
-    fprintf('Only %d peaks seem to be in the exactly correct place\n', peak_ok_count);
+if (non_beat_annotations_count > 0)
+    fprintf('%d non-beat annotations were found and ignored %s\n', non_beat_annotations_count, non_beat_annotations_list);
 end
 
-if (peak_before_count > 0)
-    fprintf('The true peak is before %d annotated peaks\n', peak_before_count);
-end
-if (peak_after_count > 0)
-    fprintf('The true peak is after %d annotated peaks\n', peak_after_count);
+if (r_peak_ok_count < r_peak_count)
+    fprintf('Only %d peaks seem to be in the exactly correct place\n', r_peak_ok_count);
 end
 
-if (peak_count > 1)
+if (r_peak_before_count > 0)
+    fprintf('The true peak is before %d annotated peaks\n', r_peak_before_count);
+end
+if (r_peak_after_count > 0)
+    fprintf('The true peak is after %d annotated peaks\n', r_peak_after_count);
+end
+
+if (r_peak_count > 1)
     % We can calculate some inter-peak stats
-    peak_interval_first_to_last = (last_peak_sample - first_peak_sample) * interval;
-    average_rr_interval_sec = peak_interval_first_to_last / (peak_count - 1);
+    peak_interval_first_to_last = (last_r_peak_sample - first_r_peak_sample) * interval;
+    average_rr_interval_sec = peak_interval_first_to_last / (r_peak_count - 1);
     average_heart_rate_bpm = 60 / average_rr_interval_sec;
     fprintf('Average    RR interval: %f\n', average_rr_interval_sec);
     fprintf('Average heart rate bpm: %f\n', average_heart_rate_bpm);
@@ -208,8 +240,10 @@ figure;
 % Plot the time-series data
 plot(x', val_to_plot');
 hold on;
-% Overlay with the R peaks
-plot(ann_secs', ann_values', 'ro', 'Markersize', 4);
+% Overlay the normal R peaks
+plot(normal_r_peak_secs', normal_r_peak_values', 'go', 'Markersize', 4);
+% And overlay the arrhythmia R peaks
+plot(arrhythmia_r_peak_secs', arrhythmia_r_peak_values', 'ro', 'Markersize', 4);
 hold off;
 % Add a text box with the stats
 dim = [0.7 0.5 0.3 0.3];
