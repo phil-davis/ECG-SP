@@ -1,0 +1,8 @@
+106m 2 360 650000
+106m.mat 16+192 200/mV 11 0 -62 16068 0 MLII
+106m.mat 16+192 200/mV 11 0 39 -10133 0 V1
+# 24 F 1581 654 x1
+# Inderal
+# The PVCs are multiform.
+#Creator: wfdb2mat
+#Source: record mitdb/106

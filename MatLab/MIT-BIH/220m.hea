@@ -1,0 +1,7 @@
+220m 2 360 650000
+220m.mat 16+192 200/mV 11 0 -138 -2451 0 MLII
+220m.mat 16+192 200/mV 11 0 -76 21878 0 V1
+# 87 F 1543 654 x2
+# Digoxin
+#Creator: wfdb2mat
+#Source: record mitdb/220
