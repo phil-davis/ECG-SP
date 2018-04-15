@@ -1,0 +1,8 @@
+112m 2 360 650000
+112m.mat 16+192 200/mV 11 0 -150 -22300 0 MLII
+112m.mat 16+192 200/mV 11 0 -124 4261 0 V1
+# 54 M 903 654 x2
+# Digoxin, Pronestyl
+# There is S-T segment depression in the upper channel.
+#Creator: wfdb2mat
+#Source: record mitdb/112
