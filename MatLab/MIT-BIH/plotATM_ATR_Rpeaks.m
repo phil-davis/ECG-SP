@@ -23,6 +23,8 @@ function plotATM_ATR_Rpeaks(RecordName, detectionAlgorithm, startSeconds, endSec
 %       The name of one of the supported detection algorithms.
 %         'librow' - algorithm inspired by code at LIBROW
 %                    (see findRpeaksLibrow.m)
+%         'simple' - simple FIR, squaring and scan for peaks above
+%                    threshold
 %         'default' or '' - selects 'librow'
 %         'none' - do not do Rpeak detection
 %
@@ -91,6 +93,11 @@ end
 
 if (strcmp(detectionAlgorithm, defaultDetectionAlgorithm) || strcmp(detectionAlgorithm, 'none'))
     % the algorithm is OK to use
+    detectionAlgorithmValid = true;
+end
+
+if (strcmp(detectionAlgorithm, 'simple'))
+    % the simple algorithm is OK to use
     detectionAlgorithmValid = true;
 end
 
@@ -258,6 +265,10 @@ end
 if (strcmp(detectionAlgorithm, 'librow'))
     % Do R-peak detection using the LIBROW-inspired algorithm
     rpeaks = findRpeaksLibrow(val(1, :),sampleFreq);
+    plotDetectedRpeaks = true;
+elseif (strcmp(detectionAlgorithm, 'simple'))
+    % Do R-peak detection using the simple algorithm
+    rpeaks = findRpeaksSimple(val(1, :),sampleFreq);
     plotDetectedRpeaks = true;
 else
     % detectionAlgorithm 'none' has been requested
