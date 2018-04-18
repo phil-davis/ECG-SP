@@ -1,4 +1,4 @@
-function plotATM_ATR_Rpeaks(RecordName, start_seconds, end_seconds)
+function plotATM_ATR_Rpeaks(Name, start_seconds, end_seconds)
 
 % usage: plotATM_ATR_Rpeaks('RECORD')
 %
@@ -14,16 +14,12 @@ function plotATM_ATR_Rpeaks(RecordName, start_seconds, end_seconds)
 %
 % Input Parameters:
 %
-% RecordName
+% Name
 %       The record "number" to read the signal and annotation data from
-%       Do not include the "m" that is on the end of the MatLab format
-%       files.
 %
-% start_seconds (optional)
-%       How many seconds into the data to start the plot (default 0)
+% strat_seconds (optional)
+%       An int
 %
-% end_seconds (optional)
-%       How many seconds into the data to end the plot (default end of data)
 %
 % The baseline-corrected and scaled time series are the rows of matrix 'val',
 % and each column contains simultaneous samples of each time series.
@@ -84,7 +80,7 @@ if ((end_seconds - start_seconds) < 0.1)
     end_seconds = start_seconds + 0.1;
 end
 
-mName = strcat(RecordName, 'm');
+mName = strcat(Name, 'm');
 infoName = strcat(mName, '.info');
 matName = strcat(mName, '.mat');
 Octave = exist('OCTAVE_VERSION');
@@ -131,7 +127,7 @@ end
 % This has the beats (R peaks) detected and their type N(ormal) or some
 % other beat annotation, or some special non-beat annotation character.
 % The annotation file name has no 'm' at the end
-[ann, anntype] = rdann(RecordName,'atr');
+[ann, anntype] = rdann(Name,'atr');
 
 % Certain annotations are (supposed to be) on beats, so should be R-peaks
 % see https://physionet.org/physiobank/annotations.shtml
@@ -364,7 +360,7 @@ legend(labels);
 xlabel('Time (sec)');
 
 % Add a title
-title(sprintf('ECG plot for record %s with annotated and detected R peaks', RecordName));
+title(sprintf('ECG plot for record %s with annotated and detected R peaks', Name));
 
 % grid on
 
