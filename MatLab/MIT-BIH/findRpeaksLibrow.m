@@ -1,4 +1,4 @@
-function rpeaks=findRpeaks(ecg, samplingrate)
+function rpeaks=findRpeaksLibrow(ecg, samplingrate)
 
 % usage: findRpeaks(ecg, samplingrate)
 %
@@ -19,8 +19,9 @@ function rpeaks=findRpeaks(ecg, samplingrate)
 % samplingrate
 %       An integer sampling rate (samples per second) of the signal
 %
-% findRpeaks.m
+% findRpeaksLibrow.m
 %    Phil Davis    15 Apr 2018 initial version
+%    Phil Davis    18 Apr 2018 Renamed to findRpeaksLibrow
 %
 % Remove lower frequencies - takes out the DC and "normalizes" the signal
 fresult=fft(ecg);
