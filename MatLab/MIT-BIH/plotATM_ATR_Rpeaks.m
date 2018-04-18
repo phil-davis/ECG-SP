@@ -257,7 +257,7 @@ end
 
 if (strcmp(detectionAlgorithm, 'librow'))
     % Do R-peak detection using the LIBROW-inspired algorithm
-    rpeaks = findRpeaks(val(1, :),sampleFreq);
+    rpeaks = findRpeaksLibrow(val(1, :),sampleFreq);
     plotDetectedRpeaks = true;
 else
     % detectionAlgorithm 'none' has been requested
