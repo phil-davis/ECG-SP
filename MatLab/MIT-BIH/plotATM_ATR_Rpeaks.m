@@ -1,4 +1,4 @@
-function plotATM_ATR_Rpeaks(RecordName, startSeconds, endSeconds)
+function plotATM_ATR_Rpeaks(RecordName, detectionAlgorithm, startSeconds, endSeconds)
 
 % usage: plotATM_ATR_Rpeaks('RECORD')
 %
@@ -18,6 +18,13 @@ function plotATM_ATR_Rpeaks(RecordName, startSeconds, endSeconds)
 %       The record "number" to read the signal and annotation data from
 %       Do not include the "m" that is on the end of the MatLab format
 %       files.
+%
+% detectionAlgorithm (optional - default to 'librow')
+%       The name of one of the supported detection algorithms.
+%         'librow' - algorithm inspired by code at LIBROW
+%                    (see findRpeaksLibrow.m)
+%         'default' or '' - selects 'librow'
+%         'none' - do not do Rpeak detection
 %
 % startSeconds (optional)
 %       How many seconds into the data to start the plot (default 0)
@@ -54,17 +61,42 @@ function plotATM_ATR_Rpeaks(RecordName, startSeconds, endSeconds)
 
 plotToEnd = false;
 
-if (nargin == 2)
-    % with only two arguments passed, we plot from 0 to arg2
+if (nargin == 3)
+    % with three arguments passed, we plot from 0 to 'startSeconds'
     endSeconds = startSeconds;
     startSeconds = 0;
 end
 
-if (nargin < 2)
-    % with only one argument, we plot all the data
+if (nargin < 3)
+    % with only one or two arguments, we plot all the data
     startSeconds = 0;
     endSeconds = 0;
     plotToEnd = true;
+end
+
+defaultDetectionAlgorithm = 'librow';
+detectionAlgorithmValid = false;
+
+if (nargin < 2)
+    % with only one argument, select the default algorithm
+    detectionAlgorithm = defaultDetectionAlgorithm;
+    detectionAlgorithmValid = true;
+end
+
+if (strcmp(detectionAlgorithm, '') || strcmp(detectionAlgorithm, 'default'))
+    % select the default algorithm
+    detectionAlgorithm = defaultDetectionAlgorithm;
+    detectionAlgorithmValid = true;
+end
+
+if (strcmp(detectionAlgorithm, defaultDetectionAlgorithm) || strcmp(detectionAlgorithm, 'none'))
+    % the algorithm is OK to use
+    detectionAlgorithmValid = true;
+end
+
+if (~detectionAlgorithmValid)
+    fprintf('Unknown detection algorithm requested: %s\n', detectionAlgorithm);
+    return;
 end
 
 % Do not start or end in the past
@@ -223,42 +255,50 @@ for k = 1 : length(ann)
     end
 end
 
-% Do R-peak detection using the LIBROW-inspired algorithm
-rpeaks = findRpeaks(val(1, :),sampleFreq);
+if (strcmp(detectionAlgorithm, 'librow'))
+    % Do R-peak detection using the LIBROW-inspired algorithm
+    rpeaks = findRpeaks(val(1, :),sampleFreq);
+    plotDetectedRpeaks = true;
+else
+    % detectionAlgorithm 'none' has been requested
+    plotDetectedRpeaks = false;
+end
 
-for k = 1 : length(rpeaks)
-    % Only use peaks that are between the desired start and end point
-    if ((rpeaks(k) >= startSample) && (rpeaks(k) <= endSample))
-        peak_sec = rpeaks(k) * interval;
-        peak_value = (val(1,rpeaks(k)) - base(1)) / gain(1);
-        detected_r_peak_count = detected_r_peak_count + 1;
-        detected_r_peak_secs(detected_r_peak_count) = peak_sec;
-        detected_r_peak_values(detected_r_peak_count) = peak_value;
-        
-        peak_ok = true;
-        
-        last_detected_r_peak_sample = rpeaks(k);
-        
-        if (detected_r_peak_count == 1)
-            first_detected_r_peak_sample = last_detected_r_peak_sample;
-        end
-        
-        % If the value of the sample before or after is higher, 
-        % then the detected R peak is not exactly on a peak.
-        if (val(1,rpeaks(k)) < val(1,rpeaks(k)-1))
-            detected_r_peak_before_count = detected_r_peak_before_count + 1;
-            peak_ok = false;
-        end
-        
-        if (val(1,rpeaks(k)) < val(1,rpeaks(k)+1))
-            detected_r_peak_after_count = detected_r_peak_after_count + 1;
-            peak_ok = false;
-        end
-        
-        if (peak_ok)
-            detected_r_peak_ok_count = detected_r_peak_ok_count + 1;
-        end
+if (plotDetectedRpeaks)
+    for k = 1 : length(rpeaks)
+        % Only use peaks that are between the desired start and end point
+        if ((rpeaks(k) >= startSample) && (rpeaks(k) <= endSample))
+            peak_sec = rpeaks(k) * interval;
+            peak_value = (val(1,rpeaks(k)) - base(1)) / gain(1);
+            detected_r_peak_count = detected_r_peak_count + 1;
+            detected_r_peak_secs(detected_r_peak_count) = peak_sec;
+            detected_r_peak_values(detected_r_peak_count) = peak_value;
 
+            peak_ok = true;
+
+            last_detected_r_peak_sample = rpeaks(k);
+
+            if (detected_r_peak_count == 1)
+                first_detected_r_peak_sample = last_detected_r_peak_sample;
+            end
+
+            % If the value of the sample before or after is higher, 
+            % then the detected R peak is not exactly on a peak.
+            if (val(1,rpeaks(k)) < val(1,rpeaks(k)-1))
+                detected_r_peak_before_count = detected_r_peak_before_count + 1;
+                peak_ok = false;
+            end
+
+            if (val(1,rpeaks(k)) < val(1,rpeaks(k)+1))
+                detected_r_peak_after_count = detected_r_peak_after_count + 1;
+                peak_ok = false;
+            end
+
+            if (peak_ok)
+                detected_r_peak_ok_count = detected_r_peak_ok_count + 1;
+            end
+
+        end
     end
 end
 
@@ -283,20 +323,22 @@ if (r_peak_after_count > 0)
     fprintf('The true peak is after %d annotated peaks\n', r_peak_after_count);
 end
 
-% Report information about the numbers of detected peaks found,
-% and how many seem to be not quite in the right place.
-fprintf('%d detected R peaks are in the displayed time period\n', detected_r_peak_count);
+if (plotDetectedRpeaks)
+    % Report information about the numbers of detected peaks found,
+    % and how many seem to be not quite in the right place.
+    fprintf('%d detected R peaks are in the displayed time period\n', detected_r_peak_count);
 
-if (detected_r_peak_ok_count < detected_r_peak_count)
-    fprintf('Only %d detected peaks seem to be in the exactly correct place\n', detected_r_peak_ok_count);
-end
+    if (detected_r_peak_ok_count < detected_r_peak_count)
+        fprintf('Only %d detected peaks seem to be in the exactly correct place\n', detected_r_peak_ok_count);
+    end
 
-if (detected_r_peak_before_count > 0)
-    fprintf('The true peak is before %d detected peaks\n', detected_r_peak_before_count);
-end
+    if (detected_r_peak_before_count > 0)
+        fprintf('The true peak is before %d detected peaks\n', detected_r_peak_before_count);
+    end
 
-if (detected_r_peak_after_count > 0)
-    fprintf('The true peak is after %d detected peaks\n', detected_r_peak_after_count);
+    if (detected_r_peak_after_count > 0)
+        fprintf('The true peak is after %d detected peaks\n', detected_r_peak_after_count);
+    end
 end
 
 if (r_peak_count > 1)
@@ -315,21 +357,23 @@ else
     average_annotated_bpm_text = 'No annotated BPM';
 end
 
-if (detected_r_peak_count > 1)
-    % We can calculate some inter-peak stats for the detected R peaks
-    peak_interval_first_to_last = (last_detected_r_peak_sample - first_detected_r_peak_sample) * interval;
-    average_detected_rr_interval_sec = peak_interval_first_to_last / (detected_r_peak_count - 1);
-    average_detected_heart_rate_bpm = 60 / average_detected_rr_interval_sec;
-    fprintf('Average detected     RR interval: %f\n', average_detected_rr_interval_sec);
-    fprintf('Average detected  heart rate bpm: %f\n', average_detected_heart_rate_bpm);
-    average_detected_rr_interval_text = sprintf('Ave detected RR %4.2f', average_detected_rr_interval_sec);
-    average_detected_bpm_text = sprintf('Ave detected BPM %3.0f', average_detected_heart_rate_bpm);
-    stats_text = {sprintf('Ave RR %4.2f', average_detected_rr_interval_sec), sprintf('Ave BPM %3.0f', average_detected_heart_rate_bpm)};
-else
-    % with only 1 or no peaks, inter-peak stats are meaningless
-    fprintf('Cannot calculate detected average RR interval or heart rate - too few peaks\n');
-    average_detected_rr_interval_text = 'No detected ave RR';
-    average_detected_bpm_text = 'No detected BPM';
+if (plotDetectedRpeaks)
+    if (detected_r_peak_count > 1)
+        % We can calculate some inter-peak stats for the detected R peaks
+        peak_interval_first_to_last = (last_detected_r_peak_sample - first_detected_r_peak_sample) * interval;
+        average_detected_rr_interval_sec = peak_interval_first_to_last / (detected_r_peak_count - 1);
+        average_detected_heart_rate_bpm = 60 / average_detected_rr_interval_sec;
+        fprintf('Average detected     RR interval: %f\n', average_detected_rr_interval_sec);
+        fprintf('Average detected  heart rate bpm: %f\n', average_detected_heart_rate_bpm);
+        average_detected_rr_interval_text = sprintf('Ave detected RR %4.2f', average_detected_rr_interval_sec);
+        average_detected_bpm_text = sprintf('Ave detected BPM %3.0f', average_detected_heart_rate_bpm);
+        stats_text = {sprintf('Ave RR %4.2f', average_detected_rr_interval_sec), sprintf('Ave BPM %3.0f', average_detected_heart_rate_bpm)};
+    else
+        % with only 1 or no peaks, inter-peak stats are meaningless
+        fprintf('Cannot calculate detected average RR interval or heart rate - too few peaks\n');
+        average_detected_rr_interval_text = 'No detected ave RR';
+        average_detected_bpm_text = 'No detected BPM';
+    end
 end
 
 val_to_plot = val(:,startSample:endSample);
@@ -348,13 +392,24 @@ hold on;
 plot(normal_r_peak_secs', normal_r_peak_values', 'go', 'Markersize', 4);
 % And overlay the arrhythmia R peaks in red
 plot(arrhythmia_r_peak_secs', arrhythmia_r_peak_values', 'ro', 'Markersize', 4);
-% Overlay the detected R peaks in blue
-plot(detected_r_peak_secs', detected_r_peak_values', 'bo', 'Markersize', 4);
+
+if (plotDetectedRpeaks)
+    % Overlay the detected R peaks in blue
+    plot(detected_r_peak_secs', detected_r_peak_values', 'bo', 'Markersize', 4);
+end
+
 hold off;
 % Add a text box with the stats
 dim = [0.7 0.5 0.3 0.3];
-stats_text = {average_annotated_rr_interval_text, average_annotated_bpm_text, average_detected_rr_interval_text, average_detected_bpm_text};
+
+if (plotDetectedRpeaks)
+    stats_text = {average_annotated_rr_interval_text, average_annotated_bpm_text, average_detected_rr_interval_text, average_detected_bpm_text};
+else
+    stats_text = {average_annotated_rr_interval_text, average_annotated_bpm_text};
+end
+
 annotation('textbox', dim, 'String', stats_text, 'FitBoxToText', 'on');
+
 % Add legends with signal lead and units details
 for i = 1:length(signal)
     labels{i} = strcat(signal{i}, ' (', units{i}, ')'); 
