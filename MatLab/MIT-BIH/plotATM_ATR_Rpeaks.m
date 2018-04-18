@@ -1,4 +1,4 @@
-function plotATM_ATR_Rpeaks(RecordName, start_seconds, end_seconds)
+function plotATM_ATR_Rpeaks(RecordName, startSeconds, endSeconds)
 
 % usage: plotATM_ATR_Rpeaks('RECORD')
 %
@@ -19,10 +19,10 @@ function plotATM_ATR_Rpeaks(RecordName, start_seconds, end_seconds)
 %       Do not include the "m" that is on the end of the MatLab format
 %       files.
 %
-% start_seconds (optional)
+% startSeconds (optional)
 %       How many seconds into the data to start the plot (default 0)
 %
-% end_seconds (optional)
+% endSeconds (optional)
 %       How many seconds into the data to end the plot (default end of data)
 %
 % The baseline-corrected and scaled time series are the rows of matrix 'val',
@@ -52,36 +52,36 @@ function plotATM_ATR_Rpeaks(RecordName, start_seconds, end_seconds)
 %    Phil Davis    15 Apr 2018 read an "atr" file and plot the R peaks
 %    Phil Davis    15 Apr 2018 also do R peak detection and plot that
 
-plot_to_end = false;
+plotToEnd = false;
 
 if (nargin == 2)
     % with only two arguments passed, we plot from 0 to arg2
-    end_seconds = start_seconds;
-    start_seconds = 0;
+    endSeconds = startSeconds;
+    startSeconds = 0;
 end
 
 if (nargin < 2)
     % with only one argument, we plot all the data
-    start_seconds = 0;
-    end_seconds = 0;
-    plot_to_end = true;
+    startSeconds = 0;
+    endSeconds = 0;
+    plotToEnd = true;
 end
 
 % Do not start or end in the past
-start_seconds = max(start_seconds, 0);
-end_seconds = max(end_seconds, 0);
+startSeconds = max(startSeconds, 0);
+endSeconds = max(endSeconds, 0);
 
-if (start_seconds > end_seconds)
+if (startSeconds > endSeconds)
     % be nice and swap around the start and end, rather than erroring
-    temp_seconds = start_seconds;
-    start_seconds = end_seconds;
-    end_seconds = temp_seconds;
+    tempSeconds = startSeconds;
+    startSeconds = endSeconds;
+    endSeconds = tempSeconds;
 end
 
-if ((end_seconds - start_seconds) < 0.1)
+if ((endSeconds - startSeconds) < 0.1)
     % Always plot at least 0.1 second
     % we do not want "empty" plots
-    end_seconds = start_seconds + 0.1;
+    endSeconds = startSeconds + 0.1;
 end
 
 mName = strcat(RecordName, 'm');
@@ -94,7 +94,7 @@ fgetl(fid);
 fgetl(fid);
 fgetl(fid);
 [freqint] = sscanf(fgetl(fid), 'Sampling frequency: %f Hz  Sampling interval: %f sec');
-sample_freq = freqint(1);
+sampleFreq = freqint(1);
 interval = freqint(2);
 fgetl(fid);
 
@@ -117,14 +117,14 @@ end
 fclose(fid);
 val(val==-32768) = NaN;
 
-num_samples = size(val,2);
+numSamples = size(val,2);
 
-start_sample = int64(min((start_seconds*sample_freq) + 1, num_samples));
+startSample = int64(min((startSeconds*sampleFreq) + 1, numSamples));
 
-if (plot_to_end)
-    end_sample = num_samples;
+if (plotToEnd)
+    endSample = numSamples;
 else
-    end_sample = int64(min(max(end_seconds*sample_freq,1), num_samples));
+    endSample = int64(min(max(endSeconds*sampleFreq,1), numSamples));
 end
 
 % Get the annotation data from the atr file. 
@@ -135,7 +135,7 @@ end
 
 % Certain annotations are (supposed to be) on beats, so should be R-peaks
 % see https://physionet.org/physiobank/annotations.shtml
-beat_annotation_chars = "NLRBAaJSVrFejnE/fQ?";
+beatAnnotationChars = "NLRBAaJSVrFejnE/fQ?";
 
 % The non-beat annotations are anything else, but should be in this list:
 % [!]x()ptu`'^|~+sT*D="@
@@ -179,7 +179,7 @@ last_detected_r_peak_sample = 0;
 % Signal 1 is the signal from which the annotations were derived.
 for k = 1 : length(ann)
     % Only use annotations that are between the desired start and end point
-    if ((ann(k) >= start_sample) && (ann(k) <= end_sample))
+    if ((ann(k) >= startSample) && (ann(k) <= endSample))
         peak_sec = ann(k) * interval;
         peak_value = (val(1,ann(k)) - base(1)) / gain(1);
         if (anntype(k) == 'N')
@@ -187,7 +187,7 @@ for k = 1 : length(ann)
             normal_r_peak_count = normal_r_peak_count + 1;
             normal_r_peak_secs(normal_r_peak_count) = peak_sec;
             normal_r_peak_values(normal_r_peak_count) = peak_value;
-        elseif (contains(beat_annotation_chars, anntype(k)))
+        elseif (contains(beatAnnotationChars, anntype(k)))
             r_peak_count = r_peak_count + 1;
             arrhythmia_r_peak_count = arrhythmia_r_peak_count + 1;
             arrhythmia_r_peak_secs(arrhythmia_r_peak_count) = peak_sec;
@@ -224,11 +224,11 @@ for k = 1 : length(ann)
 end
 
 % Do R-peak detection using the LIBROW-inspired algorithm
-rpeaks = findRpeaks(val(1, :),sample_freq);
+rpeaks = findRpeaks(val(1, :),sampleFreq);
 
 for k = 1 : length(rpeaks)
     % Only use peaks that are between the desired start and end point
-    if ((rpeaks(k) >= start_sample) && (rpeaks(k) <= end_sample))
+    if ((rpeaks(k) >= startSample) && (rpeaks(k) <= endSample))
         peak_sec = rpeaks(k) * interval;
         peak_value = (val(1,rpeaks(k)) - base(1)) / gain(1);
         detected_r_peak_count = detected_r_peak_count + 1;
@@ -332,13 +332,13 @@ else
     average_detected_bpm_text = 'No detected BPM';
 end
 
-val_to_plot = val(:,start_sample:end_sample);
+val_to_plot = val(:,startSample:endSample);
 
 for i = 1:size(val_to_plot, 1)
     val_to_plot(i, :) = (val_to_plot(i, :) - base(i)) / gain(i);
 end
 
-x = ((1:size(val_to_plot, 2)) * interval) + start_seconds;
+x = ((1:size(val_to_plot, 2)) * interval) + startSeconds;
 
 figure;
 % Plot the time-series data
