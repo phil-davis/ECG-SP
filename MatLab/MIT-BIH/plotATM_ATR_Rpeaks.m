@@ -415,8 +415,10 @@ dim = [0.7 0.5 0.3 0.3];
 
 if (plotDetectedRpeaks)
     stats_text = {average_annotated_rr_interval_text, average_annotated_bpm_text, average_detected_rr_interval_text, average_detected_bpm_text};
+    title_text = sprintf('and detected R peaks using %s algorithm', detectionAlgorithm);
 else
     stats_text = {average_annotated_rr_interval_text, average_annotated_bpm_text};
+    title_text = 'R peaks';
 end
 
 annotation('textbox', dim, 'String', stats_text, 'FitBoxToText', 'on');
@@ -430,7 +432,7 @@ legend(labels);
 xlabel('Time (sec)');
 
 % Add a title
-title(sprintf('ECG plot for record %s with annotated and detected R peaks', RecordName));
+title(sprintf('ECG plot for record %s with annotated %s', RecordName, title_text));
 
 % grid on
 
